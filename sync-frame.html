@@ -1,1 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Command Center Sync Frame</title>
+</head>
+<body>
+  <p style="font-family:sans-serif;color:#666;">✅ Sync Frame Loaded.</p>
 
+  <script>
+    window.addEventListener("message", async (event) => {
+      if (!event.data || typeof event.data !== 'object') return;
+
+      const { action, binId, masterKey, accessKey, content } = event.data;
+
+      const API_URL = `https://api.jsonbin.io/v3/b/${binId}`;
+
+      if (action === 'pushToBin') {
+        try {
+          const latest = {
+            entry: content,
+            time: new Date().toISOString()
+          };
+          // Pull latest, append, then PUT
+          const pullRes = await fetch(`${API_URL}/latest`, {
+            headers: {
+              'X-Master-Key': masterKey,
+              'X-Access-Key': accessKey
+            }
+          });
+          const json = await pullRes.json();
+          const record = Array.isArray(json.record) ? json.record : [];
+          record.push(latest);
+
+          const updateRes = await fetch(API_URL, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': masterKey,
+              'X-Access-Key': accessKey
+            },
+            body: JSON.stringify(record)
+          });
+
+          const updateData = await updateRes.json();
+          event.source.postMessage({ status: 'success', data: updateData }, event.origin);
+        } catch (err) {
+          event.source.postMessage({ status: 'error', message: err.message }, event.origin);
+        }
+      }
+
+      if (action === 'pullFromBin') {
+        try {
+          const res = await fetch(`${API_URL}/latest`, {
+            headers: {
+              'X-Master-Key': masterKey,
+              'X-Access-Key': accessKey
+            }
+          });
+          const json = await res.json();
+          event.source.postMessage({ status: 'success', data: json }, event.origin);
+        } catch (err) {
+          event.source.postMessage({ status: 'error', message: err.message }, event.origin);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
