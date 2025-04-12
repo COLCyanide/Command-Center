@@ -15,10 +15,31 @@
       try {
         let result;
 
-        if (action === 'pushToBin' || action === 'appendToBin' || action === 'overwriteBin') {
-          // Get current record (for append)
-          let currentData = [];
-          if (action === 'appendToBin') {
+        switch (action) {
+          case 'pushToBin':
+          case 'overwriteBin': {
+            const newRecord = {
+              entry: content,
+              time: new Date().toISOString()
+            };
+
+            const payload = [newRecord];
+
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': masterKey,
+                'X-Access-Key': accessKey
+              },
+              body: JSON.stringify(payload)
+            });
+
+            result = await res.json();
+            break;
+          }
+
+          case 'appendToBin': {
             const getRes = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
               headers: {
                 'X-Master-Key': masterKey,
@@ -26,41 +47,72 @@
               }
             });
             const json = await getRes.json();
-            currentData = json.record || [];
+            const currentData = json.record || [];
+
+            const newRecord = {
+              entry: content,
+              time: new Date().toISOString()
+            };
+
+            const payload = [...currentData, newRecord];
+
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': masterKey,
+                'X-Access-Key': accessKey
+              },
+              body: JSON.stringify(payload)
+            });
+
+            result = await res.json();
+            break;
           }
 
-          const newRecord = {
-            entry: content,
-            time: new Date().toISOString()
-          };
+          case 'clear': {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': masterKey,
+                'X-Access-Key': accessKey
+              },
+              body: JSON.stringify([])
+            });
+            result = await res.json();
+            break;
+          }
 
-          const payload = (action === 'appendToBin') ? [...currentData, newRecord] : [newRecord];
+          case 'pullFromBin': {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+              headers: {
+                'X-Master-Key': masterKey,
+                'X-Access-Key': accessKey
+              }
+            });
+            result = await res.json();
+            break;
+          }
 
-          const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Master-Key': masterKey,
-              'X-Access-Key': accessKey
-            },
-            body: JSON.stringify(payload)
-          });
+          case 'copyFromBin': {
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+              headers: {
+                'X-Master-Key': masterKey,
+                'X-Access-Key': accessKey
+              }
+            });
+            const json = await res.json();
+            const text = (json.record || []).map(entry => entry.entry).join('\n---\n');
+            await navigator.clipboard.writeText(text);
+            result = { message: 'Copied to clipboard', data: json.record };
+            break;
+          }
 
-          result = await res.json();
+          default:
+            throw new Error('Unsupported action: ' + action);
         }
 
-        else if (action === 'pullFromBin') {
-          const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-            headers: {
-              'X-Master-Key': masterKey,
-              'X-Access-Key': accessKey
-            }
-          });
-
-          result = await res.json();
-        }
-
-        // Post result back to main page
         window.opener.postMessage({ status: 'success', data: result.record || result, message: 'OK' }, event.origin);
       } catch (err) {
         window.opener.postMessage({ status: 'error', message: err.message }, event.origin);
