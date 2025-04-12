@@ -71,10 +71,13 @@
           }
 
           case 'clear':
-            const emptyRecord = [{
-              BoxName: 'Scratchpad 1',
-              time: new Date().toISOString()
-            }];
+            const emptyRecord = [
+              {
+                BoxName: "Scratchpad 1",
+                time: new Date().toISOString()
+              }
+            ];
+          
             const clearRes = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
               method: 'PUT',
               headers: {
@@ -84,6 +87,7 @@
               },
               body: JSON.stringify(emptyRecord)
             });
+          
             result = await clearRes.json();
             break;
 
