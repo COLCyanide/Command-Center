@@ -78,7 +78,7 @@
                 'X-Master-Key': masterKey,
                 'X-Access-Key': accessKey
               },
-              body: JSON.stringify([])
+              body: JSON.stringify([{ BoxName: "Scratchpad 1", time: new Date().toISOString() }])
             });
             result = await res.json();
             break;
